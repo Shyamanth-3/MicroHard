@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from .config import config
 
+from .config import config
+from .logger import logger
 
 from ..pipelines.predict_pipeline import (
     run_forecast_pipeline,
@@ -10,20 +11,27 @@ from ..pipelines.predict_pipeline import (
 from ..services.portfolio_optimizer import optimize_portfolio
 
 
-router = APIRouter()
+# All routes will now appear under /api/*
+router = APIRouter(prefix="/api", tags=["API"])
 
 
+# -------- FORECAST --------
 class ForecastRequest(BaseModel):
     values: list[float]
-    steps: int
+    steps: int | None = None
 
 
-@router.post("/forecast")
+@router.post("/forecast", tags=["Forecasting"])
 def forecast_endpoint(req: ForecastRequest):
     steps = req.steps or config["forecasting"]["default_steps"]
-    return {"forecast": run_forecast_pipeline(req.values, steps)}
+
+    logger.info(f"[FORECAST] values={req.values} steps={steps}")
+
+    result = run_forecast_pipeline(req.values, steps)
+    return {"forecast": result}
 
 
+# -------- MONTE CARLO --------
 class MonteCarloRequest(BaseModel):
     initial: float
     mean: float
@@ -31,21 +39,27 @@ class MonteCarloRequest(BaseModel):
     steps: int
 
 
-@router.post("/monte-carlo")
+@router.post("/monte-carlo", tags=["Simulation"])
 def monte_carlo_endpoint(req: MonteCarloRequest):
-    return {"simulation": run_monte_carlo_pipeline(req.initial, req.mean, req.std, req.steps)}
+    logger.info(f"[MONTE-CARLO] {req}")
+    result = run_monte_carlo_pipeline(req.initial, req.mean, req.std, req.steps)
+    return {"simulation": result}
 
 
+# -------- OPTIMIZER --------
 class OptimizeRequest(BaseModel):
     assets: list[str]
     returns: list[float]
 
 
-@router.post("/optimize")
+@router.post("/optimize", tags=["Portfolio"])
 def optimize_endpoint(req: OptimizeRequest):
-    return {"weights": optimize_portfolio(req.assets, req.returns)}
+    logger.info(f"[OPTIMIZE] assets={req.assets}")
+    result = optimize_portfolio(req.assets, req.returns)
+    return {"weights": result}
 
 
-@router.get("/")
+# -------- HOME --------
+@router.get("/", tags=["Health"])
 def home():
     return {"message": "Backend is running"}
