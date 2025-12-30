@@ -1,0 +1,14 @@
+app:
+  name: "Portfolio & Forecasting API"
+  debug: true
+
+forecasting:
+  default_steps: 5
+
+monte_carlo:
+  default_mean: 1.2
+  default_std: 0.3
+  default_steps: 10
+
+portfolio:
+  risk_free_rate: 0.02

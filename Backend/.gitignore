@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.env.* 
+.venv/
+
+# Data
+data/raw/
+data/processed/
+*.csv
+*.json
+*.pkl
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Config / secrets
+config.yaml
+*.key
+*.pem
+
+# Logs
+logs/
+*.log
+
+# IDE / OS junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
