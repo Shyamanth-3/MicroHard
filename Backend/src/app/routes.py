@@ -63,3 +63,23 @@ def optimize_endpoint(req: OptimizeRequest):
 @router.get("/", tags=["Health"])
 def home():
     return {"message": "Backend is running"}
+
+from ..services.portfolio_service import save_portfolio, get_portfolios
+
+
+class SavePortfolioRequest(BaseModel):
+    name: str
+    assets: list[str]
+    returns: list[float]
+
+
+@router.post("/save-portfolio")
+def save_portfolio_endpoint(req: SavePortfolioRequest):
+    weights = optimize_portfolio(req.assets, req.returns)
+    portfolio = save_portfolio(req.name, req.assets, weights)
+    return {"id": portfolio.id, "weights": weights}
+
+
+@router.get("/portfolios")
+def list_portfolios():
+    return get_portfolios()

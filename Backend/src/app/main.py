@@ -9,7 +9,7 @@ from .exceptions import (
     generic_exception_handler,
 )
 
-
+from .database import init_db
 
 app = FastAPI(title=config["app"]["name"])
 
@@ -18,13 +18,18 @@ app.add_exception_handler(Exception, generic_exception_handler)
 
 @app.on_event("startup")
 async def startup_event():
+    init_db()
+    logger.info("Backend started successfully")
+
+@app.on_event("startup")
+async def startup_event():
     logger.info(" Backend started successfully")
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    logger.info(f"➡️ Request: {request.method} {request.url.path}")
+    logger.info(f" Request: {request.method} {request.url.path}")
     response = await call_next(request)
-    logger.info(f"⬅️ Response: {response.status_code} {request.url.path}")
+    logger.info(f" Response: {response.status_code} {request.url.path}")
     return response
 
 

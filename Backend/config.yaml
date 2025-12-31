@@ -12,3 +12,6 @@ monte_carlo:
 
 portfolio:
   risk_free_rate: 0.02
+
+database:
+  url: "postgresql://postgres:chichu1234@localhost:5432/microharddb"
