@@ -7,3 +7,4 @@ scipy
 PyYAML
 pytest
 httpx
+python-multipart

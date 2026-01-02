@@ -1,0 +1,14 @@
+# Frontend
+frontend/node_modules
+frontend/dist
+
+# Backend
+MicroHard/Backend/venv
+MicroHard/Backend/__pycache__
+
+# Editor
+.vscode
+
+# OS
+.DS_Store
+Thumbs.db

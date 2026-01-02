@@ -38,3 +38,14 @@ app.include_router(router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # during development only
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
