@@ -22,7 +22,7 @@ export default function Upload() {
       setLoading(true);
       const res = await uploadCSV(formData);
 
-      setPreview(res.data);
+      setPreview(res.data || res);
 
       // Save a small preview-based portfolio_data only if the sample has expected fields
       try {
@@ -43,13 +43,17 @@ export default function Upload() {
       }
 
       // Refresh uploads list in localStorage for other pages to pick up
-      try {
-        const listRes = await fetch("http://127.0.0.1:8000/api/uploads");
-        const json = await listRes.json();
-        localStorage.setItem('uploaded_files', JSON.stringify(json.files || []));
-      } catch (err) {
-        console.warn('Could not refresh uploads list', err);
-      }
+      // Refresh uploads list in localStorage for other pages to pick up
+    // Refresh uploads list in localStorage for other pages to pick up
+    try {
+      const listRes = await fetch("http://127.0.0.1:8000/api/uploads");
+      const json = await listRes.json();
+      localStorage.setItem('uploaded_files', JSON.stringify(json.files || []));
+    } catch (err) {
+      console.warn('Could not refresh uploads list', err);
+    }
+
+
 
     } catch (err) {
       alert("Upload failed — check backend logs");
@@ -103,7 +107,7 @@ export default function Upload() {
               {loading ? "Uploading..." : "Upload"}
             </button>
 
-            {preview && (
+            {preview && preview.sample && (
               <div className="mt-6 w-full text-left text-white/80">
                 <h3 className="font-semibold mb-2">Preview</h3>
 
