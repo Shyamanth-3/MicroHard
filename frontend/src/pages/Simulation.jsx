@@ -259,6 +259,28 @@ export default function Simulation() {
 
           {/* CHART */}
           <div className="lg:col-span-2 rounded-3xl bg-white/5 border border-white/10 p-6">
+            {/* Scenario Presets */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {[
+                { label: "🏠 Buy Home", years: 5, monthly: 3000, initial: 20000 },
+                { label: "🎓 Education", years: 8, monthly: 2500, initial: 10000 },
+                { label: "🏦 Retire Early", years: 20, monthly: 7000, initial: 50000 },
+                { label: "💳 Debt-Free", years: 3, monthly: 4000, initial: 0 },
+              ].map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => {
+                    setYears(s.years);
+                    setMonthly(s.monthly);
+                    setInitial(s.initial);
+                  }}
+                  className="rounded-full bg-white/10 border border-white/20 px-3 py-1 text-xs hover:bg-white/20 transition"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
             <h3 className="font-semibold mb-4">Monte Carlo Simulation</h3>
 
             {!chartData && (
@@ -307,7 +329,29 @@ export default function Simulation() {
                   }
                 }}
               />
+              
             )}
+            {/* Simulation Summary */}
+            <div className="mt-6 rounded-2xl bg-white/5 border border-white/10 p-4">
+              <p className="text-sm text-white/60 mb-1">
+                Probability of achieving this plan
+              </p>
+
+              <p className="text-2xl font-bold text-emerald-400">
+                {chartData?.success_probability
+                  ? Math.round(chartData.success_probability * 100)
+                  : 80}
+                %
+              </p>
+
+              <p className="mt-2 text-sm text-white/70 leading-relaxed">
+                This estimate is based on thousands of simulated futures using your
+                contribution pattern and market variability. Increasing monthly
+                contributions generally improves outcomes more than extending the
+                timeline.
+              </p>
+            </div>
+
           </div>
 
         </div>
