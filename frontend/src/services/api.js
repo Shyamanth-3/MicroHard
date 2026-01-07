@@ -26,15 +26,66 @@ export const runForecast = (data) =>
 export const getDashboardSummary = async () => {
   if (USE_MOCK_API) {
     return {
-      total_income: 85000,
-      total_expense: 52000,
       net_worth: 1450000,
-      confidence_score: 74,
-      main_risk: "Expense volatility",
+
+      accounts: [
+        { id: "all", name: "All Accounts", net_worth: 1450000 },
+        { id: "savings", name: "Savings Account", net_worth: 420000 },
+        { id: "credit", name: "Credit Card", net_worth: -35000 },
+        { id: "investments", name: "Investments", net_worth: 1065000 },
+      ],
+
+      months: ["Nov 2024", "Dec 2024", "Jan 2025"],
+
+      monthly_data: {
+        "Jan 2025": {
+          expenses: 32400,
+          transactions: [
+            {
+              date: "2025-01-03",
+              description: "Zomato",
+              category: "Food & Dining",
+              amount: -450,
+            },
+            {
+              date: "2025-01-05",
+              description: "Rent",
+              category: "Housing",
+              amount: -15000,
+            },
+            {
+              date: "2025-01-09",
+              description: "Amazon",
+              category: "Shopping",
+              amount: -2800,
+            },
+          ],
+        },
+
+        "Dec 2024": {
+          expenses: 29800,
+          transactions: [
+            {
+              date: "2024-12-02",
+              description: "Swiggy",
+              category: "Food & Dining",
+              amount: -620,
+            },
+            {
+              date: "2024-12-12",
+              description: "Electricity Bill",
+              category: "Utilities",
+              amount: -1800,
+            },
+          ],
+        },
+      },
     };
   }
+
   return api.get("/api/dashboard-summary");
 };
+
 
 export const getConfidenceScore = async () => {
   if (USE_MOCK_API) {
