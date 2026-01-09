@@ -8,6 +8,12 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
+// 🎨 Dynamic color generator (scales to 36+ assets)
+const generateColors = (n) =>
+  Array.from({ length: n }, (_, i) =>
+    `hsl(${(i * 360) / n}, 70%, 55%)`
+  );
+
 export default function Optimize() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -26,8 +32,12 @@ export default function Optimize() {
       const res = await optimize({
         assets: stored.assets,
         returns: stored.returns,
-        goal, // safe to pass, backend can ignore for now
+        goal,
       });
+
+      if (!res?.data?.weights) {
+        throw new Error("Invalid optimizer response");
+      }
 
       setResult(res.data.weights);
 
@@ -37,12 +47,24 @@ export default function Optimize() {
         returns: stored.returns,
       });
     } catch (err) {
-      console.error(err);
+      console.error("❌ Optimization error:", err);
       alert("Optimization failed — check backend logs.");
     } finally {
       setLoading(false);
     }
   };
+
+  // 🧠 Prepare pie chart data (exclude zero weights visually)
+  const pieData =
+    result &&
+    stored.assets
+      .map((asset, i) => ({
+        label: asset,
+        value: result[i],
+      }))
+      .filter((x) => x.value > 0.0001);
+
+  const colors = pieData ? generateColors(pieData.length) : [];
 
   return (
     <PageWrapper>
@@ -56,7 +78,9 @@ export default function Optimize() {
 
           {/* LEFT — CONTROLS */}
           <div className="rounded-3xl bg-white/5 border border-white/10 p-8">
-            <h3 className="text-lg font-semibold mb-4">Optimization Goal</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              Optimization Goal
+            </h3>
 
             <select
               value={goal}
@@ -81,7 +105,9 @@ export default function Optimize() {
 
           {/* RIGHT — RESULTS */}
           <div className="rounded-3xl bg-white/5 border border-white/10 p-8">
-            <h3 className="text-lg font-semibold mb-6">Optimized Allocation</h3>
+            <h3 className="text-lg font-semibold mb-6">
+              Optimized Allocation
+            </h3>
 
             {!result && (
               <p className="text-white/60">
@@ -92,26 +118,30 @@ export default function Optimize() {
             {result && (
               <>
                 {/* PIE CHART */}
-                <div className="h-56 mb-6">
-                  <Pie
-                    data={{
-                      labels: stored.assets,
-                      datasets: [
-                        {
-                          data: result.map((w) => (w * 100).toFixed(2)),
-                          backgroundColor: [
-                            "#22d3ee",
-                            "#34d399",
-                            "#facc15",
-                            "#fb7185",
-                          ],
-                        },
-                      ],
-                    }}
-                  />
-                </div>
+                {pieData.length > 0 ? (
+                  <div className="h-56 mb-6">
+                    <Pie
+                      data={{
+                        labels: pieData.map((x) => x.label),
+                        datasets: [
+                          {
+                            data: pieData.map((x) =>
+                              Number((x.value * 100).toFixed(2))
+                            ),
+                            backgroundColor: colors,
+                            borderWidth: 1,
+                          },
+                        ],
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-white/60 mb-6">
+                    Optimizer concentrated allocation into a single asset.
+                  </p>
+                )}
 
-                {/* WEIGHTS LIST */}
+                {/* WEIGHTS LIST (show all assets) */}
                 <ul className="space-y-2 text-sm text-white/80 mb-6">
                   {stored.assets.map((a, i) => (
                     <li key={i} className="flex justify-between">
@@ -127,21 +157,21 @@ export default function Optimize() {
                     Why this helps you
                   </p>
                   <p>
-                    The optimizer redistributed your assets to better match your
-                    selected goal — improving efficiency without increasing
-                    unnecessary risk.
+                    The optimizer redistributed your assets to best match your
+                    selected goal on the efficient frontier — balancing return
+                    and risk mathematically.
                   </p>
                 </div>
 
-                {/* ACTIONABLE NEXT STEPS */}
+                {/* NEXT STEPS */}
                 <div className="rounded-xl bg-black/20 p-4 text-sm text-white/70">
                   <p className="mb-1 font-semibold text-white">
                     Suggested next steps
                   </p>
                   <ul className="list-disc ml-4 space-y-1">
-                    <li>Rebalance your portfolio quarterly</li>
-                    <li>Avoid over-concentration in one asset</li>
-                    <li>Use Simulation to stress-test this allocation</li>
+                    <li>Rebalance quarterly</li>
+                    <li>Avoid single-asset overexposure</li>
+                    <li>Stress-test via Simulation</li>
                   </ul>
                 </div>
               </>

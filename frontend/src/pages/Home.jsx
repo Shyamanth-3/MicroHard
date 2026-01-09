@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Pie, Line } from "react-chartjs-2";
+import { useNavigate } from "react-router-dom";
 
 import {
   Chart as ChartJS,
@@ -23,6 +24,7 @@ ChartJS.register(
 );
 
 export default function Home() {
+  const navigate = useNavigate();
   const fadeUp = {
     hidden: { opacity: 0, y: 40 },
     visible: {
@@ -99,6 +101,7 @@ export default function Home() {
 
         <motion.div variants={fadeUp} className="mt-10 flex gap-6">
           <motion.button
+            onClick={() => navigate("/signin")}
             whileHover={{ scale: 1.06 }}
             whileTap={{ scale: 0.95 }}
             className="rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 px-7 py-3 text-sm font-semibold text-black shadow-lg shadow-emerald-400/20"

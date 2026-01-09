@@ -1,9 +1,19 @@
 import axios from "axios";
-const USE_MOCK_API = true; // <-- change to false when backend is ready
+const USE_MOCK_API = false; // Changed to false to use real backend
 
 
 const api = axios.create({
   baseURL: "http://127.0.0.1:8000",
+});
+
+// Attach auth token if present
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("auth_token");
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers["Authorization"] = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export const uploadCSV = (data) => api.post("/api/upload", data);
@@ -22,6 +32,13 @@ export const runForecast = (data) =>
 // ===============================
 // NEW APIs — Updated Feature Plan
 // ===============================
+
+// Analytics endpoints
+export const getAnalyticsCategories = () => api.get("/api/analytics/categories");
+export const getAnalyticsCashflow = () => api.get("/api/analytics/cashflow");
+export const getAnalyticsVolatility = () => api.get("/api/analytics/volatility");
+export const getAnalyticsNetworth = (initial=100000) => api.get("/api/analytics/networth", { params: { initial } });
+export const getScore = () => api.get("/api/score");
 
 export const getDashboardSummary = async () => {
   if (USE_MOCK_API) {
@@ -95,7 +112,7 @@ export const getConfidenceScore = async () => {
       explanation: "Savings fluctuate month to month",
     };
   }
-  return api.get("/api/confidence-score");
+  return api.get("/api/score");
 };
 
 export const runMonteCarloSimulation = async (data) => {

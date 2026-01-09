@@ -1,6 +1,34 @@
 import { NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 export default function Navbar() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    setIsAuthenticated(!!localStorage.getItem("auth_token"));
+  }, []);
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setIsAuthenticated(!!localStorage.getItem("auth_token"));
+    };
+
+    window.addEventListener("authChanged", handleAuthChange);
+    window.addEventListener("storage", handleAuthChange);
+    return () => {
+      window.removeEventListener("authChanged", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    setIsAuthenticated(false);
+    window.dispatchEvent(new Event("authChanged"));
+    window.location.href = "/signin";
+  };
+
   const linkBase =
     "text-lg font-semibold tracking-wide transition-all duration-300";
 
@@ -23,6 +51,7 @@ export default function Navbar() {
         </div>
 
         {/* NAV LINKS */}
+        {isAuthenticated && (
         <div className="hidden items-center gap-10 md:flex">
 
           <NavLink to="/" className={({ isActive }) =>
@@ -60,11 +89,21 @@ export default function Navbar() {
             Ask AI
           </NavLink>
         </div>
+        )}
 
-        {/* SIGN IN */}
-        <button className="rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 px-5 py-2 text-sm font-semibold text-black shadow-lg shadow-emerald-400/30 transition hover:scale-105">
-          Sign In
-        </button>
+        {/* SIGN IN / USER */}
+        {isAuthenticated ? (
+          <button
+            onClick={handleLogout}
+            className="rounded-full bg-white/10 border border-white/30 px-5 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+          >
+            Logout
+          </button>
+        ) : (
+          <a href="/signin" className="rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 px-5 py-2 text-sm font-semibold text-black shadow-lg shadow-emerald-400/30 transition hover:scale-105">
+            Sign In
+          </a>
+        )}
       </nav>
     </header>
   );

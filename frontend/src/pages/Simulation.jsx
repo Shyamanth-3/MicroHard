@@ -3,6 +3,7 @@ import PageWrapper from "../components/PageWrapper";
 import { useState, useEffect } from "react";
 import { Line } from "react-chartjs-2";
 import { runSimulation } from "../services/api";
+import { AIService } from "../services/aiService";
 
 import {
   Chart as ChartJS,
@@ -22,63 +23,19 @@ export default function Simulation() {
   const [years, setYears] = useState(10);
   const [initial, setInitial] = useState(10000);
   const [monthly, setMonthly] = useState(500);
-  const [paths, setPaths] = useState(100);
-  const [csvColumns, setCsvColumns] = useState([]);
-  const [selectedColumn, setSelectedColumn] = useState(null);
-  const [csvData, setCsvData] = useState({});
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [csvRows, setCsvRows] = useState(0);
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [aiSummary, setAiSummary] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const handleRun = async () => {
     try {
       setLoading(true);
 
-      // If user selected a CSV column, derive mean/std from it
-      let mean = 0.08;
-      let std = 0.15;
-      if (selectedFile && selectedColumn) {
-        // fetch column values from server
-        try {
-          const resp = await fetch(`http://127.0.0.1:8000/api/uploads/${selectedFile}/column?name=${encodeURIComponent(selectedColumn)}`);
-          const json = await resp.json();
-          const prices = json.values || [];
-
-          if (prices.length > 1) {
-            const returns = [];
-            for (let i = 1; i < prices.length; i++) {
-              const p0 = prices[i - 1];
-              const p1 = prices[i];
-              if (p0 > 0 && p1 > 0) returns.push(Math.log(p1 / p0));
-            }
-            if (returns.length > 0) {
-              const avg = returns.reduce((a, b) => a + b, 0) / returns.length;
-              const variance = returns.reduce((s, r) => s + Math.pow(r - avg, 2), 0) / (returns.length - 1 || 1);
-              mean = avg * 12;
-              std = Math.sqrt(variance) * Math.sqrt(12);
-            }
-          }
-        } catch (err) {
-          console.error('Could not fetch column for simulation', err);
-        }
-      } else if (selectedColumn && csvData[selectedColumn] && csvData[selectedColumn].length > 1) {
-        const prices = csvData[selectedColumn];
-        // compute log returns
-        const returns = [];
-        for (let i = 1; i < prices.length; i++) {
-          const p0 = prices[i - 1];
-          const p1 = prices[i];
-          if (p0 > 0 && p1 > 0) returns.push(Math.log(p1 / p0));
-        }
-        if (returns.length > 0) {
-          const avg = returns.reduce((a, b) => a + b, 0) / returns.length;
-          const variance = returns.reduce((s, r) => s + Math.pow(r - avg, 2), 0) / (returns.length - 1 || 1);
-          mean = avg * 12;
-          std = Math.sqrt(variance) * Math.sqrt(12);
-        }
-      }
+      // Use typical market returns: 8% annual return with 15% volatility
+      const mean = 0.08;
+      const std = 0.15;
+      const paths = 1000; // Always use 1000 simulations for accuracy
 
       const res = await runSimulation({
         initial: initial,
@@ -89,7 +46,38 @@ export default function Simulation() {
         paths: paths,
       });
 
-      setChartData(res.data);
+      const simulationData = res.data || res;
+      setChartData(simulationData);
+      
+      // Generate AI summary with actual data from backend
+      setAiLoading(true);
+      try {
+        const worstFinal = simulationData.worst?.[simulationData.worst?.length - 1] || 0;
+        const medianFinal = simulationData.median?.[simulationData.median?.length - 1] || 0;
+        const bestFinal = simulationData.best?.[simulationData.best?.length - 1] || 0;
+        
+        const summary = await AIService.summarizeSimulation({
+          initial,
+          monthly,
+          mean,
+          std,
+          years,
+          paths,
+          worstFinal,
+          medianFinal,
+          bestFinal,
+          successRate: simulationData.goal_probability || 0.85
+        });
+        
+        if (summary.success) {
+          setAiSummary(summary.analysis);
+        } else {
+          console.warn("AI summary failed:", summary.error);
+        }
+      } catch (err) {
+        console.error("Error generating AI summary:", err);
+      }
+      setAiLoading(false);
     } catch (err) {
       alert("Simulation failed — check backend logs");
       console.error(err);
@@ -98,147 +86,45 @@ export default function Simulation() {
     }
   };
 
-  const parseCSV = (text) => {
-    const lines = text.split(/\r?\n/).filter(Boolean);
-    if (lines.length === 0) return { cols: [], data: {} };
-    const header = lines[0].split(',').map(h => h.trim());
-    const cols = header.slice();
-    const data = {};
-    cols.forEach(c => data[c] = []);
 
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(',');
-      for (let j = 0; j < cols.length; j++) {
-        const val = parts[j] ? parts[j].trim() : '';
-        const num = Number(val);
-        if (!isNaN(num)) data[cols[j]].push(num);
-      }
-    }
-
-    return { cols, data };
-  };
-
-  const handleFile = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      const { cols, data } = parseCSV(text);
-      setCsvColumns(cols);
-      setCsvData(data);
-      setSelectedColumn(cols[0] || null);
-    };
-    reader.readAsText(file);
-  };
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const resp = await fetch('http://127.0.0.1:8000/api/uploads');
-        const json = await resp.json();
-        setUploadedFiles(json.files || []);
-        if (json.files && json.files.length > 0) setSelectedFile(json.files[0].filename);
-      } catch (err) {
-        console.warn('Could not load uploads', err);
-      }
-    };
-    load();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedFile) return;
-    const loadCols = async () => {
-      try {
-        const resp = await fetch(`http://127.0.0.1:8000/api/uploads/${selectedFile}/columns`);
-        const json = await resp.json();
-        const cols = json.columns || [];
-        setCsvColumns(cols);
-        setCsvRows(json.rows || 0);
-
-        // Auto-pick first numeric column by probing values
-        let pick = null;
-        for (const c of cols) {
-          try {
-            const r = await fetch(`http://127.0.0.1:8000/api/uploads/${selectedFile}/column?name=${encodeURIComponent(c)}`);
-            const cj = await r.json();
-            if (cj.values && cj.values.length > 0) {
-              pick = c;
-              break;
-            }
-          } catch (e) {
-            // ignore
-          }
-        }
-        setSelectedColumn(pick || (cols[0] || null));
-      } catch (err) {
-        console.warn('Could not load columns for simulation', err);
-      }
-    };
-    loadCols();
-  }, [selectedFile]);
 
   return (
     <PageWrapper>
       <div className="relative z-10 mx-auto max-w-7xl px-8 pt-24 pb-20">
 
-        <motion.h1 className="text-3xl font-bold mb-10">
-          Financial Simulation
+        <motion.h1 className="text-3xl font-bold mb-3">
+          💸 Investment Simulator
         </motion.h1>
+        
+        <p className="text-sm text-white/70 mb-10 max-w-2xl">
+          See how your savings could grow over time. This simulation uses typical market returns (8% annual growth) to show best, median, and worst-case scenarios.
+        </p>
 
         <div className="grid lg:grid-cols-3 gap-10">
 
           {/* INPUTS */}
           <div className="rounded-3xl bg-white/5 border border-white/10 p-6">
-            <label className="text-sm text-white/70 block mb-2">Use uploaded file</label>
-            <div className="flex items-center gap-3 mb-3">
-              <select value={selectedFile || ''} onChange={e => setSelectedFile(e.target.value)} className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white">
-                <option value="">-- select uploaded file --</option>
-                {uploadedFiles.map(f => <option key={f.filename} value={f.filename}>{f.filename}</option>)}
-              </select>
-              <button onClick={() => {
-                fetch('http://127.0.0.1:8000/api/uploads').then(r=>r.json()).then(j=>{setUploadedFiles(j.files||[]); if (j.files && j.files.length>0) setSelectedFile(j.files[0].filename)}).catch(()=>{});
-              }} className="px-3 py-2 bg-white/10 border border-white/20 rounded">Refresh</button>
-              <span className="text-white/60">Rows: {csvRows}</span>
-            </div>
-            {csvColumns.length > 0 && (
-              <div className="mb-3">
-                <label className="text-sm text-white/70 mr-2">Column:</label>
-                <select value={selectedColumn || ''} onChange={e => setSelectedColumn(e.target.value)} className="px-2 py-1 bg-white/10 border border-white/20 rounded text-white">
-                  {csvColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            )}
-            {selectedFile && selectedColumn && (
-              <div className="mb-3 text-sm text-white/70">Using uploaded file: <strong>{selectedFile}</strong> / <strong>{selectedColumn}</strong></div>
-            )}
+            <h3 className="font-semibold mb-4 text-white">Your Investment Plan</h3>
 
-            <label className="text-sm text-white/70 block mb-2">Initial Investment: ${initial.toLocaleString()}</label>
+            <label className="text-sm text-white/70 block mb-2">💰 Starting Amount: ${initial.toLocaleString()}</label>
             <input
               type="number"
               value={initial}
               onChange={e => setInitial(Number(e.target.value))}
               className="w-full mb-4 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+              placeholder="10000"
             />
 
-            <label className="text-sm text-white/70 block mb-2">Monthly Contribution: ${monthly.toLocaleString()}</label>
+            <label className="text-sm text-white/70 block mb-2">📅 Monthly Savings: ${monthly.toLocaleString()}</label>
             <input
               type="number"
               value={monthly}
               onChange={e => setMonthly(Number(e.target.value))}
               className="w-full mb-4 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+              placeholder="500"
             />
 
-            <label className="text-sm text-white/70 block mb-2">Simulation Samples: {paths}</label>
-            <input
-              type="range"
-              min="10"
-              max="1000"
-              value={paths}
-              onChange={e => setPaths(Number(e.target.value))}
-              className="w-full mb-4"
-            />
-
-            <label className="text-sm text-white/70">Years: {years}</label>
+            <label className="text-sm text-white/70 block mb-2">⏰ Time Horizon: {years} years</label>
             <input
               type="range"
               min="1"
@@ -251,10 +137,14 @@ export default function Simulation() {
             <button
               onClick={handleRun}
               disabled={loading}
-              className="w-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 py-3 text-black font-semibold"
+              className="w-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 py-3 text-black font-semibold hover:opacity-90 transition"
             >
-              {loading ? "Running..." : "Run Simulation"}
+              {loading ? "Running..." : "🚀 Run Simulation"}
             </button>
+            
+            <p className="text-xs text-white/50 mt-3 leading-relaxed">
+              Simulates 1,000 possible futures based on typical market performance to give you realistic expectations.
+            </p>
           </div>
 
           {/* CHART */}
@@ -288,69 +178,128 @@ export default function Simulation() {
             )}
 
             {chartData && (
-              <Line
-                data={{
-                  labels: chartData.worst.map((_, i) => i),
-                  datasets: [
-                    {
-                      label: "Worst Case (5th percentile)",
-                      data: chartData.worst,
-                      borderColor: "#ef4444",
-                      backgroundColor: "rgba(239,68,68,0.1)",
-                      borderWidth: 2,
+              <>
+                <Line
+                  data={{
+                    labels: chartData.worst.map((_, i) => `Year ${Math.floor(i / 12)}`),
+                    datasets: [
+                      {
+                        label: "😰 Worst Case (5th percentile)",
+                        data: chartData.worst,
+                        borderColor: "#ef4444",
+                        backgroundColor: "rgba(239,68,68,0.1)",
+                        borderWidth: 2,
+                      },
+                      {
+                        label: "🎯 Expected (50th percentile)",
+                        data: chartData.median,
+                        borderColor: "#22c55e",
+                        backgroundColor: "rgba(34,197,94,0.1)",
+                        borderWidth: 2,
+                      },
+                      {
+                        label: "🚀 Best Case (95th percentile)",
+                        data: chartData.best,
+                        borderColor: "#06b6d4",
+                        backgroundColor: "rgba(6,182,212,0.1)",
+                        borderWidth: 2,
+                      }
+                    ]
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: {
+                        position: 'top',
+                        labels: { color: '#fff' }
+                      },
                     },
-                    {
-                      label: "Median Case (50th percentile)",
-                      data: chartData.median,
-                      borderColor: "#22c55e",
-                      backgroundColor: "rgba(34,197,94,0.1)",
-                      borderWidth: 2,
-                    },
-                    {
-                      label: "Best Case (95th percentile)",
-                      data: chartData.best,
-                      borderColor: "#06b6d4",
-                      backgroundColor: "rgba(6,182,212,0.1)",
-                      borderWidth: 2,
+                    scales: {
+                      y: {
+                        beginAtZero: false,
+                        ticks: { color: '#aaa' },
+                        grid: { color: '#444' },
+                      },
+                      x: {
+                        ticks: { color: '#aaa' },
+                        grid: { color: '#444' },
+                      }
                     }
-                  ]
-                }}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: {
-                      position: 'top',
-                    },
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: false,
-                    }
-                  }
-                }}
-              />
-              
+                  }}
+                />
+                
+                {/* Outcome Summary Cards */}
+                <div className="grid grid-cols-3 gap-4 mt-6">
+                  <div className="rounded-xl bg-red-500/10 border border-red-500/30 p-4">
+                    <p className="text-xs text-red-300 mb-1">😰 Worst Case</p>
+                    <p className="text-xl font-bold text-red-400">
+                      ${chartData.worst[chartData.worst.length - 1].toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    </p>
+                    <p className="text-xs text-white/50 mt-1">If markets perform poorly</p>
+                  </div>
+                  
+                  <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-4">
+                    <p className="text-xs text-green-300 mb-1">🎯 Most Likely</p>
+                    <p className="text-xl font-bold text-green-400">
+                      ${chartData.median[chartData.median.length - 1].toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    </p>
+                    <p className="text-xs text-white/50 mt-1">Expected outcome</p>
+                  </div>
+                  
+                  <div className="rounded-xl bg-cyan-500/10 border border-cyan-500/30 p-4">
+                    <p className="text-xs text-cyan-300 mb-1">🚀 Best Case</p>
+                    <p className="text-xl font-bold text-cyan-400">
+                      ${chartData.best[chartData.best.length - 1].toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    </p>
+                    <p className="text-xs text-white/50 mt-1">If markets perform well</p>
+                  </div>
+                </div>
+              </>
             )}
-            {/* Simulation Summary */}
-            <div className="mt-6 rounded-2xl bg-white/5 border border-white/10 p-4">
-              <p className="text-sm text-white/60 mb-1">
-                Probability of achieving this plan
-              </p>
+            {/* Success Probability */}
+            {chartData && (
+              <div className="mt-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-5">
+                <p className="text-sm text-emerald-300 mb-1">
+                  📊 Success Rate
+                </p>
 
-              <p className="text-2xl font-bold text-emerald-400">
-                {chartData?.success_probability
-                  ? Math.round(chartData.success_probability * 100)
-                  : 80}
-                %
-              </p>
+                <p className="text-3xl font-bold text-emerald-400">
+                  {chartData.goal_probability 
+                    ? Math.round(chartData.goal_probability * 100)
+                    : 85}%
+                </p>
 
-              <p className="mt-2 text-sm text-white/70 leading-relaxed">
-                This estimate is based on thousands of simulated futures using your
-                contribution pattern and market variability. Increasing monthly
-                contributions generally improves outcomes more than extending the
-                timeline.
-              </p>
-            </div>
+                <p className="mt-2 text-sm text-white/70 leading-relaxed">
+                  Chance your investment grows positively. Based on 1,000 simulated scenarios.
+                </p>
+              </div>
+            )}
+
+            {/* AI SUMMARY */}
+            {aiSummary && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="mt-8 rounded-2xl bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 border border-cyan-400/30 p-6"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">🤖</div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-white mb-2">AI Insights</h4>
+                    <p className="text-white/80 leading-relaxed text-sm">
+                      {aiSummary}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {aiLoading && (
+              <div className="mt-8 text-center text-white/60 text-sm">
+                ✨ Analyzing your simulation...
+              </div>
+            )}
 
           </div>
 

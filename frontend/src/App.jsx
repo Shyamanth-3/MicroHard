@@ -9,20 +9,32 @@ import Simulation from "./pages/Simulation";
 import Optimize from "./pages/Optimize";
 import AskAI from "./pages/AskAI";
 import ForecastPage from "./pages/Forecast";
+import SignIn from "./pages/SignIn";
 
 function AnimatedRoutes() {
   const location = useLocation();
+
+  const RequireAuth = ({ children }) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      return <SignIn />;
+    }
+    return children;
+  };
 
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Home />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/upload" element={<Upload />} />
-        <Route path="/simulation" element={<Simulation />} />
-        <Route path="/optimize" element={<Optimize />} />
-        <Route path="/forecast" element={<ForecastPage />} />
-        <Route path="/ask-ai" element={<AskAI />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/upload" element={<RequireAuth><Upload /></RequireAuth>} />
+        <Route path="/simulation" element={<RequireAuth><Simulation /></RequireAuth>} />
+        <Route path="/optimize" element={<RequireAuth><Optimize /></RequireAuth>} />
+        <Route path="/forecast" element={<RequireAuth><ForecastPage /></RequireAuth>} />
+        <Route path="/ask-ai" element={<RequireAuth><AskAI /></RequireAuth>} />
+        {/* Fallback for undefined routes */}
+        <Route path="*" element={<Home />} />
       </Routes>
     </AnimatePresence>
   );

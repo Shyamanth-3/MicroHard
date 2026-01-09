@@ -41,6 +41,10 @@ def run_monte_carlo_pipeline(
     median = np.percentile(simulations, 50, axis=0)
     best = np.percentile(simulations, 95, axis=0)
 
+    # Calculate success probability (how many paths had positive growth)
+    final_values = simulations[:, -1]
+    success_rate = float((final_values > initial).mean())
+    
     prob_reaching_goal = None
     if goal_target is not None:
         prob_reaching_goal = float((simulations[:, -1] >= goal_target).mean())
@@ -49,6 +53,10 @@ def run_monte_carlo_pipeline(
         "worst": worst.tolist(),
         "median": median.tolist(),
         "best": best.tolist(),
+        "worst_final": float(worst[-1]),
+        "median_final": float(median[-1]),
+        "best_final": float(best[-1]),
+        "success_probability": success_rate,
         "goal_probability": prob_reaching_goal,
     }
 

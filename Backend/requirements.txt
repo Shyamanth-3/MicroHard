@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 pydantic
+pydantic-settings
 scikit-learn
 numpy
 scipy
@@ -9,3 +10,5 @@ pytest
 httpx
 python-multipart
 sqlmodel
+passlib[bcrypt]
+PyJWT

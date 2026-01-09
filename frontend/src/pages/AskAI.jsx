@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import PageWrapper from "../components/PageWrapper";
 import { useState } from "react";
-import { askAIExplanation } from "../services/api";
+import { AIService } from "../services/aiService";
 
 export default function AskAI() {
   const [messages, setMessages] = useState([
@@ -24,23 +24,29 @@ export default function AskAI() {
     setExplanation(null);
 
     try {
-      const res = await askAIExplanation(input);
-      const data = res.data || res;
+      const res = await AIService.askQuestion(input, {});
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "ai", text: data.answer },
-      ]);
+      if (res.success) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "ai", text: res.analysis },
+        ]);
 
-      setExplanation({
-        assumptions: data.assumptions || [],
-        risks: data.risks || [],
-        nextSteps: [
-          "Stabilize monthly savings",
-          "Build emergency buffer",
-          "Avoid aggressive risk in early years",
-        ],
-      });
+        setExplanation({
+          assumptions: ["Based on your uploaded transaction data", "Current market conditions"],
+          risks: ["Unexpected expenses", "Market volatility"],
+          nextSteps: [
+            "Stabilize monthly savings",
+            "Build emergency buffer",
+            "Avoid aggressive risk in early years",
+          ],
+        });
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { role: "ai", text: `⚠️ ${res.error || "I couldn't analyze that right now. Please try again."}` },
+        ]);
+      }
     } catch (err) {
       setMessages((prev) => [
         ...prev,
