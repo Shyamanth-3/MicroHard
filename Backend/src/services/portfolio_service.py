@@ -2,6 +2,7 @@ import json
 from sqlmodel import Session, select
 from ..models.portfolio_model import Portfolio
 from ..app.database import engine
+# actually this one is okay — but ensure no "app." anywhere else.
 
 def save_portfolio(name: str, assets: list[str], weights: list[float]):
     portfolio = Portfolio(

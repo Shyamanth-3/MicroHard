@@ -1,7 +1,9 @@
 from sqlmodel import SQLModel, create_engine, Session
-from .config import config
+from .config import settings, config_yaml
 
-DATABASE_URL = config["database"]["url"]
+
+# Prefer .env → fallback to config.yaml SQLite
+DATABASE_URL = settings.DATABASE_URL or config_yaml["database"]["url"]
 
 engine = create_engine(DATABASE_URL, echo=False)
 

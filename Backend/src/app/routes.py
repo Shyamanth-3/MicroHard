@@ -1,56 +1,65 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File, Depends
 from pydantic import BaseModel
+from pathlib import Path
+from io import StringIO
+import pandas as pd
 
-from .config import config
+from .config import config_yaml
 from .logger import logger
 
 from ..pipelines.predict_pipeline import (
     run_forecast_pipeline,
     run_monte_carlo_pipeline,
 )
+
 from ..services.portfolio_optimizer import optimize_portfolio
+from ..services.portfolio_service import save_portfolio, get_portfolios
+from ..services.ingestion import normalize_and_save
+from ..services.analytics import (
+    totals_by_category,
+    income_expense_over_time,
+    volatility,
+)
+from ..services.score import financial_confidence_score
 
-from fastapi import UploadFile, File
-
-import pandas as pd
-from io import StringIO
-from pathlib import Path
-import os
+from ..models.transaction import Transaction
+from .database import get_session
 
 
-# All routes will now appear under /api/*
+# ---------------- ROOT ROUTER ----------------
 router = APIRouter(prefix="/api", tags=["API"])
 
 
-# -------- FORECAST --------
+# ------------- FORECAST ----------------------
 class ForecastRequest(BaseModel):
     values: list[float]
     steps: int | None = None
 
 
-@router.post("/forecast", tags=["Forecasting"])
+@router.post("/forecast")
 def forecast_endpoint(req: ForecastRequest):
-    steps = req.steps or config["forecasting"]["default_steps"]
-
+    steps = req.steps or config_yaml["forecasting"]["default_steps"]
     logger.info(f"[FORECAST] values={req.values} steps={steps}")
-
     result = run_forecast_pipeline(req.values, steps)
     return {"forecast": result}
 
 
-# -------- MONTE CARLO --------
+# ------------- MONTE CARLO -------------------
 class MonteCarloRequest(BaseModel):
     initial: float
     monthly: float
-    mean: float      # e.g., 0.09 (9%)
-    std: float       # e.g., 0.18 (18%)
+    mean: float
+    std: float
     years: int
     paths: int | None = None
+    goal_target: float | None = None
+    early_setback: bool = False
 
 
 @router.post("/monte-carlo")
 def monte_carlo_endpoint(req: MonteCarloRequest):
     used_paths = req.paths or 100
+
     result = run_monte_carlo_pipeline(
         req.initial,
         req.monthly,
@@ -58,32 +67,33 @@ def monte_carlo_endpoint(req: MonteCarloRequest):
         req.std,
         req.years,
         paths=used_paths,
+        goal_target=req.goal_target,
+        early_setback=req.early_setback,
     )
+
     return result
 
 
-
-# -------- OPTIMIZER --------
+# ------------- OPTIMIZER ---------------------
 class OptimizeRequest(BaseModel):
     assets: list[str]
     returns: list[float]
 
 
-@router.post("/optimize", tags=["Portfolio"])
+@router.post("/optimize")
 def optimize_endpoint(req: OptimizeRequest):
     logger.info(f"[OPTIMIZE] assets={req.assets}")
     result = optimize_portfolio(req.assets, req.returns)
     return {"weights": result}
 
 
-# -------- HOME --------
-@router.get("/", tags=["Health"])
+# ------------- HEALTH ------------------------
+@router.get("/")
 def home():
     return {"message": "Backend is running"}
 
-from ..services.portfolio_service import save_portfolio, get_portfolios
 
-
+# ------------- PORTFOLIOS --------------------
 class SavePortfolioRequest(BaseModel):
     name: str
     assets: list[str]
@@ -102,16 +112,11 @@ def list_portfolios():
     return get_portfolios()
 
 
-import pandas as pd
-from io import StringIO
-
-
+# ------------- FILE UPLOAD (DB INGESTION) ---
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), session=Depends(get_session)):
     content = await file.read()
 
-    # Convert bytes → CSV dataframe
-    # Save uploaded file to data/raw folder
     raw_dir = Path(__file__).resolve().parents[3] / "data" / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
@@ -119,56 +124,60 @@ async def upload_file(file: UploadFile = File(...)):
     with open(save_path, "wb") as f:
         f.write(content)
 
-    # Read into dataframe for metadata
     df = pd.read_csv(StringIO(content.decode()))
+
+    imported = normalize_and_save(df, session)
 
     return {
         "filename": file.filename,
         "rows": len(df),
+        "imported": imported,
         "columns": list(df.columns),
-        "sample": df.head(3).to_dict(orient="records"),
-        "saved_path": str(save_path)
+        "saved_path": str(save_path),
     }
 
 
-@router.get("/uploads")
-def list_uploads():
-    raw_dir = Path(__file__).resolve().parents[3] / "data" / "raw"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    files = []
-    for p in sorted(raw_dir.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True):
-        if p.is_file():
-            files.append({"filename": p.name, "path": str(p), "modified": p.stat().st_mtime})
-    return {"files": files}
+# ------------- TRANSACTIONS ------------------
+class TransactionIn(BaseModel):
+    date: str
+    amount: float
+    category: str | None = None
+    merchant: str | None = None
+    type: str | None = None
+    account: str | None = None
+    description: str | None = None
+    raw_json: dict | None = None
 
 
-@router.get("/uploads/{filename}/columns")
-def upload_columns(filename: str):
-    raw_dir = Path(__file__).resolve().parents[3] / "data" / "raw"
-    file_path = raw_dir / filename
-    if not file_path.exists():
-        return {"error": "file not found"}
-    df = pd.read_csv(file_path)
-    return {"columns": list(df.columns), "rows": len(df)}
+@router.post("/transactions")
+def add_transaction(req: TransactionIn, session=Depends(get_session)):
+    tx = Transaction(
+        **req.model_dump(exclude={"raw_json"}),
+        raw_json=(None if req.raw_json is None else str(req.raw_json)),
+    )
+    session.add(tx)
+    session.commit()
+    session.refresh(tx)
+    return tx
 
 
-@router.get("/uploads/{filename}/column")
-def upload_column_values(filename: str, name: str):
-    raw_dir = Path(__file__).resolve().parents[3] / "data" / "raw"
-    file_path = raw_dir / filename
-    if not file_path.exists():
-        return {"error": "file not found"}
-    df = pd.read_csv(file_path)
-    if name not in df.columns:
-        return {"error": "column not found"}
-    vals = df[name].dropna().tolist()
-    # Try converting to numeric where possible
-    cleaned = []
-    for v in vals:
-        try:
-            num = float(v)
-            cleaned.append(num)
-        except Exception:
-            # skip non-numeric
-            pass
-    return {"values": cleaned}
+# ------------- ANALYTICS ---------------------
+@router.get("/analytics/categories")
+def api_totals_by_category(session=Depends(get_session)):
+    return totals_by_category(session)
+
+
+@router.get("/analytics/cashflow")
+def api_cashflow(session=Depends(get_session)):
+    return income_expense_over_time(session)
+
+
+@router.get("/analytics/volatility")
+def api_volatility(session=Depends(get_session)):
+    return {"volatility": volatility(session)}
+
+
+# ------------- SCORE ------------------------
+@router.get("/score")
+def api_score(session=Depends(get_session)):
+    return financial_confidence_score(session)

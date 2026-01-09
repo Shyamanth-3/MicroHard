@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from .routes import router
-from .config import config
+from .config import settings, config_yaml
 from .logger import logger
 from fastapi import Request
 from .exceptions import (
@@ -10,8 +10,10 @@ from .exceptions import (
 )
 
 from .database import init_db
+from ..models.transaction import Transaction
 
-app = FastAPI(title=config["app"]["name"])
+
+app = FastAPI(title=config_yaml["app"]["name"])
 
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
