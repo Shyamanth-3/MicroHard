@@ -21,23 +21,24 @@ async function post(endpoint, payload) {
 }
 
 export const AIService = {
-  analyzeSimulation(data) {
+  /* analyzeSimulation(data) {
     return post("/api/ai/analyze-simulation", data);
-  },
+  }, */
 
-  analyzeForecast(data) {
+ /*  analyzeForecast(data) {
     return post("/api/ai/analyze-forecast", data);
-  },
+  }, */
 
-  analyzeOptimization(data) {
+ /*  analyzeOptimization(data) {
     return post("/api/ai/analyze-optimization", data);
-  },
+  },*/
 
-  askQuestion(question, context = {}) {
-    return post("/api/ai/ask", { question, context });
-  },
+  askQuestion(question) {
+  return post("/api/ask-ai", { question });
+},
 
-  summarizeDashboard(chartData) {
+
+ /*  summarizeDashboard(chartData) {
     return post("/api/ai/summarize-dashboard", chartData);
   },
 
@@ -47,7 +48,7 @@ export const AIService = {
 
   summarizeForecast(forecastText) {
     return post("/api/ai/summarize-forecast", { text: forecastText });
-  },
+  }, */
 };
 
 export default AIService;
