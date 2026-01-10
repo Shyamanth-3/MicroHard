@@ -14,6 +14,19 @@ from ..models.transaction import Transaction
 
 
 app = FastAPI(title=config_yaml["app"]["name"])
+from pydantic import BaseModel
+
+class AIRequest(BaseModel):
+    question: str
+
+@app.post("/api/ask-ai")
+async def ask_ai(req: AIRequest):
+    return {
+        "status": "route_reached",
+        "question": req.question
+    }
+
+
 
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
