@@ -14,3 +14,7 @@ MicroHard/Backend/__pycache__
 Thumbs.db
 
 FinSight/
+
+# Environment files
+.env
+frontend/.env
