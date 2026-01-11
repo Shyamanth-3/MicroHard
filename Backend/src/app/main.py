@@ -34,8 +34,10 @@ class AIRequest(BaseModel):
 @app.post("/api/ask-ai")
 async def ask_ai(req: AIRequest):
     return {
-        "answer": f"Route reached. You asked: {req.question}"
+    "success": True,
+    "analysis": f"Route reached. You asked: {req.question}"
     }
+
 
 
 
