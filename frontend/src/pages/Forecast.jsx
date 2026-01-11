@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { Line } from "react-chartjs-2";
 import { runForecast } from "../services/api";
 import { AIService } from "../services/aiService";
+import ActiveDataset from "../components/ActiveDataset";
+
 
 export default function ForecastPage() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -419,6 +421,8 @@ Please provide a brief, friendly analysis of this expense forecast in 2-3 senten
         <motion.h1 className="text-3xl font-bold mb-3">
           💰 Forecast
         </motion.h1>
+        <ActiveDataset />
+
 
         <p className="text-sm text-white/70 mb-10 max-w-2xl">
           Forecast shows your monthly income and expenses trends for the last year.

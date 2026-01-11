@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import PageWrapper from "../components/PageWrapper";
 import { useState } from "react";
 import { optimize, savePortfolio } from "../services/api";
-
+import ActiveDataset from "../components/ActiveDataset";
 import { Pie } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 
@@ -73,6 +73,8 @@ export default function Optimize() {
         <motion.h1 className="text-3xl font-bold mb-10">
           Portfolio Optimization
         </motion.h1>
+        <ActiveDataset />
+
 
         <div className="grid lg:grid-cols-2 gap-10">
 

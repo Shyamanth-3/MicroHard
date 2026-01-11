@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Line } from "react-chartjs-2";
 import { runSimulation } from "../services/api";
 import { AIService } from "../services/aiService";
+import ActiveDataset from "../components/ActiveDataset";
 
 import {
   Chart as ChartJS,
@@ -32,10 +33,9 @@ export default function Simulation() {
     try {
       setLoading(true);
 
-      // Use typical market returns: 8% annual return with 15% volatility
       const mean = 0.08;
       const std = 0.15;
-      const paths = 1000; // Always use 1000 simulations for accuracy
+      const paths = 1000;
 
       const res = await runSimulation({
         initial: initial,
@@ -48,14 +48,13 @@ export default function Simulation() {
 
       const simulationData = res.data || res;
       setChartData(simulationData);
-      
-      // Generate AI summary with actual data from backend
+
       setAiLoading(true);
       try {
         const worstFinal = simulationData.worst?.[simulationData.worst?.length - 1] || 0;
         const medianFinal = simulationData.median?.[simulationData.median?.length - 1] || 0;
         const bestFinal = simulationData.best?.[simulationData.best?.length - 1] || 0;
-        
+
         const summary = await AIService.summarizeSimulation({
           initial,
           monthly,
@@ -68,11 +67,9 @@ export default function Simulation() {
           bestFinal,
           successRate: simulationData.goal_probability || 0.85
         });
-        
+
         if (summary.success) {
           setAiSummary(summary.analysis);
-        } else {
-          console.warn("AI summary failed:", summary.error);
         }
       } catch (err) {
         console.error("Error generating AI summary:", err);
@@ -86,8 +83,6 @@ export default function Simulation() {
     }
   };
 
-
-
   return (
     <PageWrapper>
       <div className="relative z-10 mx-auto max-w-7xl px-8 pt-24 pb-20">
@@ -95,7 +90,9 @@ export default function Simulation() {
         <motion.h1 className="text-3xl font-bold mb-3">
           💸 Investment Simulator
         </motion.h1>
-        
+
+        <ActiveDataset />
+
         <p className="text-sm text-white/70 mb-10 max-w-2xl">
           See how your savings could grow over time. This simulation uses typical market returns (8% annual growth) to show best, median, and worst-case scenarios.
         </p>
@@ -106,7 +103,9 @@ export default function Simulation() {
           <div className="rounded-3xl bg-white/5 border border-white/10 p-6">
             <h3 className="font-semibold mb-4 text-white">Your Investment Plan</h3>
 
-            <label className="text-sm text-white/70 block mb-2">💰 Starting Amount: ${initial.toLocaleString()}</label>
+            <label className="text-sm text-white/70 block mb-2">
+              💰 Starting Amount: ${initial.toLocaleString()}
+            </label>
             <input
               type="number"
               value={initial}
@@ -115,7 +114,9 @@ export default function Simulation() {
               placeholder="10000"
             />
 
-            <label className="text-sm text-white/70 block mb-2">📅 Monthly Savings: ${monthly.toLocaleString()}</label>
+            <label className="text-sm text-white/70 block mb-2">
+              📅 Monthly Savings: ${monthly.toLocaleString()}
+            </label>
             <input
               type="number"
               value={monthly}
@@ -124,7 +125,9 @@ export default function Simulation() {
               placeholder="500"
             />
 
-            <label className="text-sm text-white/70 block mb-2">⏰ Time Horizon: {years} years</label>
+            <label className="text-sm text-white/70 block mb-2">
+              ⏰ Time Horizon: {years} years
+            </label>
             <input
               type="range"
               min="1"
@@ -141,7 +144,7 @@ export default function Simulation() {
             >
               {loading ? "Running..." : "🚀 Run Simulation"}
             </button>
-            
+
             <p className="text-xs text-white/50 mt-3 leading-relaxed">
               Simulates 1,000 possible futures based on typical market performance to give you realistic expectations.
             </p>
@@ -227,55 +230,49 @@ export default function Simulation() {
                     }
                   }}
                 />
-                
-                {/* Outcome Summary Cards */}
+
                 <div className="grid grid-cols-3 gap-4 mt-6">
                   <div className="rounded-xl bg-red-500/10 border border-red-500/30 p-4">
                     <p className="text-xs text-red-300 mb-1">😰 Worst Case</p>
                     <p className="text-xl font-bold text-red-400">
-                      ${chartData.worst[chartData.worst.length - 1].toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      ${chartData.worst[chartData.worst.length - 1].toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </p>
                     <p className="text-xs text-white/50 mt-1">If markets perform poorly</p>
                   </div>
-                  
+
                   <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-4">
                     <p className="text-xs text-green-300 mb-1">🎯 Most Likely</p>
                     <p className="text-xl font-bold text-green-400">
-                      ${chartData.median[chartData.median.length - 1].toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      ${chartData.median[chartData.median.length - 1].toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </p>
                     <p className="text-xs text-white/50 mt-1">Expected outcome</p>
                   </div>
-                  
+
                   <div className="rounded-xl bg-cyan-500/10 border border-cyan-500/30 p-4">
                     <p className="text-xs text-cyan-300 mb-1">🚀 Best Case</p>
                     <p className="text-xl font-bold text-cyan-400">
-                      ${chartData.best[chartData.best.length - 1].toLocaleString(undefined, {maximumFractionDigits: 0})}
+                      ${chartData.best[chartData.best.length - 1].toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </p>
                     <p className="text-xs text-white/50 mt-1">If markets perform well</p>
                   </div>
                 </div>
               </>
             )}
-            {/* Success Probability */}
+
             {chartData && (
               <div className="mt-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-5">
-                <p className="text-sm text-emerald-300 mb-1">
-                  📊 Success Rate
-                </p>
-
+                <p className="text-sm text-emerald-300 mb-1">📊 Success Rate</p>
                 <p className="text-3xl font-bold text-emerald-400">
-                  {chartData.goal_probability 
+                  {chartData.goal_probability
                     ? Math.round(chartData.goal_probability * 100)
                     : 85}%
                 </p>
-
                 <p className="mt-2 text-sm text-white/70 leading-relaxed">
                   Chance your investment grows positively. Based on 1,000 simulated scenarios.
                 </p>
               </div>
             )}
 
-            {/* AI SUMMARY */}
             {aiSummary && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -302,7 +299,6 @@ export default function Simulation() {
             )}
 
           </div>
-
         </div>
       </div>
     </PageWrapper>
