@@ -1,10 +1,7 @@
+
+
+from google import genai
 import os
-import google.generativeai as genai
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-pro")
-
-
 from fastapi import FastAPI
 from .routes import router
 from .config import settings, config_yaml
@@ -19,6 +16,7 @@ from .exceptions import (
 from .database import init_db
 from ..models.transaction import Transaction
 
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 app = FastAPI(title=config_yaml["app"]["name"])
 
@@ -41,7 +39,10 @@ class AIRequest(BaseModel):
 @app.post("/api/ask-ai")
 async def ask_ai(req: AIRequest):
     try:
-        response = model.generate_content(req.question)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=req.question
+        )
 
         return {
             "success": True,
@@ -49,11 +50,11 @@ async def ask_ai(req: AIRequest):
         }
 
     except Exception as e:
+        logger.exception("Gemini error")
         return {
             "success": False,
             "error": "AI service is temporarily unavailable."
         }
-
 
 
 
