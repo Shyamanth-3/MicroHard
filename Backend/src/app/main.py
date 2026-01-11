@@ -14,6 +14,17 @@ from ..models.transaction import Transaction
 
 
 app = FastAPI(title=config_yaml["app"]["name"])
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # during development only
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(router)
 from pydantic import BaseModel
 
@@ -55,12 +66,3 @@ def health_check():
     return {"status": "ok"}
 
 
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],      # during development only
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
