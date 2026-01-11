@@ -1,3 +1,10 @@
+import os
+import google.generativeai as genai
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-pro")
+
+
 from fastapi import FastAPI
 from .routes import router
 from .config import settings, config_yaml
@@ -33,10 +40,20 @@ class AIRequest(BaseModel):
 
 @app.post("/api/ask-ai")
 async def ask_ai(req: AIRequest):
-    return {
-    "success": True,
-    "analysis": f"Route reached. You asked: {req.question}"
-    }
+    try:
+        response = model.generate_content(req.question)
+
+        return {
+            "success": True,
+            "analysis": response.text
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": "AI service is temporarily unavailable."
+        }
+
 
 
 
