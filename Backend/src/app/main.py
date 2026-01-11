@@ -1,3 +1,5 @@
+raise RuntimeError("🚨 THIS IS THE FILE RAILWAY IS RUNNING 🚨")
+
 import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
