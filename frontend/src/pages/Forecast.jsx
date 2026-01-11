@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Line } from "react-chartjs-2";
 import { runForecast } from "../services/api";
-import AIService from "../services/aiService";
+import { AIService } from "../services/aiService";
 
 export default function ForecastPage() {
   const [uploadedFiles, setUploadedFiles] = useState([]);

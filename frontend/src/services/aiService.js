@@ -1,42 +1,31 @@
+import axios from "axios";
+
 const API_BASE = import.meta.env.VITE_API_URL;
 
 export const AIService = {
-  async ask(question) {
-    const res = await fetch(`${API_BASE}/api/ask-ai`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ question }),
+  ask: async (question) => {
+    const res = await axios.post(`${API_BASE}/api/ask-ai`, {
+      question,
     });
-
-    return res.json();
+    return res.data;
   },
 
-  async summarizeDashboard(data) {
+  summarizeDashboard: async ({ categories, cashflow, score }) => {
     const prompt = `
 You are a financial analyst AI.
 
-Given this user's financial dashboard data:
-${JSON.stringify(data, null, 2)}
+Here is the user's financial data:
+- Categories: ${JSON.stringify(categories)}
+- Cashflow: ${JSON.stringify(cashflow)}
+- Confidence score: ${JSON.stringify(score)}
 
-Provide:
-- A concise summary
-- Key insights
-- One risk
-- One actionable recommendation
-
-Keep it clear and non-technical.
+Give a short, clear dashboard summary with insights and risks.
 `;
 
-    const res = await fetch(`${API_BASE}/api/ask-ai`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ question: prompt }),
+    const res = await axios.post(`${API_BASE}/api/ask-ai`, {
+      question: prompt,
     });
 
-    return res.json();
-  }
+    return res.data;
+  },
 };
