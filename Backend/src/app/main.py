@@ -41,13 +41,14 @@ class AIRequest(BaseModel):
 async def ask_ai(req: AIRequest):
     try:
         completion = groq_client.chat.completions.create(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "You are FinSight AI, a financial assistant."},
-                {"role": "user", "content": req.question},
+                {"role": "system", "content": "You are FinSight AI, a financial analysis assistant."},
+                {"role": "user", "content": req.question}
             ],
-            temperature=0.4,
+            temperature=0.7,
         )
+
 
         return {
             "success": True,
