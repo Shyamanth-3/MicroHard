@@ -19,13 +19,18 @@ from .database import init_db
 app = FastAPI(title=config_yaml["app"]["name"])
 
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://hospitable-balance-production-15ad.up.railway.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 groq_client = Groq(
