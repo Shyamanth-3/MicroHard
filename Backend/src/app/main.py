@@ -1,4 +1,4 @@
-
+from .cors import add_cors_headers
 import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -79,10 +79,15 @@ async def startup_event():
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    logger.info(f"Request: {request.method} {request.url.path}")
     response = await call_next(request)
-    logger.info(f"Response: {response.status_code} {request.url.path}")
+    add_cors_headers(response)
     return response
+
+@app.options("/{path:path}")
+async def options_handler(path: str):
+    return {}
+
+
 
 
 app.include_router(router)
