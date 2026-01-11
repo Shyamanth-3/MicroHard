@@ -49,11 +49,12 @@ async def ask_ai(req: AIRequest):
         }
 
     except Exception as e:
-        logger.exception("Gemini error")
+        logger.error(f"Gemini error: {e}")
         return {
             "success": False,
-            "error": "AI service is temporarily unavailable."
+            "error": str(e)
         }
+
 
 
 
