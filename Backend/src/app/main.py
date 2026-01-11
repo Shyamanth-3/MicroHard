@@ -1,4 +1,3 @@
-raise RuntimeError("🚨 THIS IS THE FILE RAILWAY IS RUNNING 🚨")
 
 import os
 from fastapi import FastAPI, Request
