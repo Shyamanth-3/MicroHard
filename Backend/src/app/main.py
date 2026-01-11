@@ -1,6 +1,5 @@
-from .cors import add_cors_headers
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from groq import Groq
@@ -16,21 +15,36 @@ from .exceptions import (
 from .database import init_db
 
 
+# --------------------------------------------------
+# App Initialization
+# --------------------------------------------------
+
 app = FastAPI(title=config_yaml["app"]["name"])
 
-from fastapi.middleware.cors import CORSMiddleware
+
+# --------------------------------------------------
+# CORS CONFIG — SINGLE SOURCE OF TRUTH ✅
+# --------------------------------------------------
+# DO NOT add manual headers
+# DO NOT add OPTIONS handlers
+# DO NOT add custom CORS middleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # allow all origins
-    allow_credentials=False,      # 🔥 FIX — MUST be False with "*"
+    allow_origins=[
+        "https://hospitable-balance-production-15ad.up.railway.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ],
+    allow_credentials=False,   # MUST be False unless using cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-
-
+# --------------------------------------------------
+# Groq AI Client
+# --------------------------------------------------
 
 groq_client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
@@ -47,12 +61,17 @@ async def ask_ai(req: AIRequest):
         completion = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "You are FinSight AI, a financial analysis assistant."},
-                {"role": "user", "content": req.question}
+                {
+                    "role": "system",
+                    "content": "You are FinSight AI, a financial analysis assistant."
+                },
+                {
+                    "role": "user",
+                    "content": req.question
+                }
             ],
             temperature=0.7,
         )
-
 
         return {
             "success": True,
@@ -67,9 +86,17 @@ async def ask_ai(req: AIRequest):
         }
 
 
+# --------------------------------------------------
+# Exception Handlers
+# --------------------------------------------------
+
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
+
+# --------------------------------------------------
+# Startup
+# --------------------------------------------------
 
 @app.on_event("startup")
 async def startup_event():
@@ -77,21 +104,16 @@ async def startup_event():
     logger.info("Backend started successfully")
 
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    response = await call_next(request)
-    add_cors_headers(response)
-    return response
-
-@app.options("/{path:path}")
-async def options_handler(path: str):
-    return {}
-
-
-
+# --------------------------------------------------
+# Routes
+# --------------------------------------------------
 
 app.include_router(router)
 
+
+# --------------------------------------------------
+# Health Check
+# --------------------------------------------------
 
 @app.get("/health")
 def health_check():
