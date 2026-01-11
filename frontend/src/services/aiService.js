@@ -1,54 +1,42 @@
-/**
- * AI Analysis Service
- * Frontend → Backend only (NO Gemini here)
- */
-
 const API_BASE = import.meta.env.VITE_API_URL;
 
-async function post(endpoint, payload) {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || "AI request failed");
-  }
-
-  return res.json();
-}
-
 export const AIService = {
-  /* analyzeSimulation(data) {
-    return post("/api/ai/analyze-simulation", data);
-  }, */
+  async ask(question) {
+    const res = await fetch(`${API_BASE}/api/ask-ai`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question }),
+    });
 
- /*  analyzeForecast(data) {
-    return post("/api/ai/analyze-forecast", data);
-  }, */
-
- /*  analyzeOptimization(data) {
-    return post("/api/ai/analyze-optimization", data);
-  },*/
-
-  askQuestion(question) {
-  return post("/api/ask-ai", { question });
-},
-
-
- /*  summarizeDashboard(chartData) {
-    return post("/api/ai/summarize-dashboard", chartData);
+    return res.json();
   },
 
-  summarizeSimulation(simulationData) {
-    return post("/api/ai/summarize-simulation", simulationData);
-  },
+  async summarizeDashboard(data) {
+    const prompt = `
+You are a financial analyst AI.
 
-  summarizeForecast(forecastText) {
-    return post("/api/ai/summarize-forecast", { text: forecastText });
-  }, */
+Given this user's financial dashboard data:
+${JSON.stringify(data, null, 2)}
+
+Provide:
+- A concise summary
+- Key insights
+- One risk
+- One actionable recommendation
+
+Keep it clear and non-technical.
+`;
+
+    const res = await fetch(`${API_BASE}/api/ask-ai`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question: prompt }),
+    });
+
+    return res.json();
+  }
 };
-
-export default AIService;
