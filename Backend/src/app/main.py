@@ -1,6 +1,5 @@
 
-
-from google import genai
+import google.genai as genai
 import os
 from fastapi import FastAPI
 from .routes import router
