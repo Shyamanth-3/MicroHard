@@ -14,6 +14,7 @@ from ..models.transaction import Transaction
 
 
 app = FastAPI(title=config_yaml["app"]["name"])
+app.include_router(router)
 from pydantic import BaseModel
 
 class AIRequest(BaseModel):
@@ -48,7 +49,6 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-app.include_router(router)
 
 @app.get("/health")
 def health_check():
